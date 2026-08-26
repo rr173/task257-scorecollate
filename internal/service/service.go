@@ -448,12 +448,12 @@ func (s *Service) PublishEdition(id string) (*model.Edition, error) {
 		return nil, err
 	}
 	confirmedIDs := edition.ConfirmedVariantIDs(variants)
-	links := make([]model.EditionVariantLink, 0, len(variants))
-	for _, v := range variants {
-		links = append(links, model.EditionVariantLink{EditionID: id, VariantID: v.ID, Included: true})
+	// 仅冻结已确认异文；尚未裁决的候选不得进入快照。
+	links := make([]model.EditionVariantLink, 0, len(confirmedIDs))
+	for _, id := range confirmedIDs {
+		links = append(links, model.EditionVariantLink{EditionID: e.ID, VariantID: id, Included: true})
 	}
-	_ = confirmedIDs
-	if err := s.store.LinkEditionVariants(id, links); err != nil {
+	if err := s.store.LinkEditionVariants(e.ID, links); err != nil {
 		return nil, err
 	}
 	newVer, err := s.store.UpdateEditionState(id, model.EditionFrozen, e.Version)

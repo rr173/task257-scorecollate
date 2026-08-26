@@ -87,8 +87,10 @@ func (s *Store) LinkEditionVariants(editionID string, links []model.EditionVaria
 		return err
 	}
 	for _, l := range links {
-		inc := 1
-		_ = l.Included
+		inc := 0
+		if l.Included {
+			inc = 1
+		}
 		if _, err := tx.Exec(
 			`INSERT INTO edition_variants (edition_id,variant_id,included) VALUES (?,?,?)`,
 			editionID, l.VariantID, inc); err != nil {

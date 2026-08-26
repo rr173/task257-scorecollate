@@ -135,3 +135,79 @@ func TestSourceGenealogyRejectsCycle(t *testing.T) {
 		t.Fatalf("期望自环错误，实际 %v", err)
 	}
 }
+
+// TestPublishFreezeExcludesUnadjudicated 验证：发布冻结版本时只收录已确认异文，
+// 尚未裁决的候选不得进入冻结快照。
+func TestPublishFreezeExcludesUnadjudicated(t *testing.T) {
+	svc := newTestService(t)
+	p, err := svc.CreateProject("未裁决候选不入快照", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srcA, err := svc.CreateSource(p.ID, "A", "祖本", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srcB, err := svc.CreateSource(p.ID, "B", "传抄本", srcA.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 两处差异：M1 声部0 音符不同（节拍合法 -> 初判证据不足），M2 节拍断裂（-> 初判讹写）。
+	rawA := "M1 b4 v2 : [C4 E4][G4 A4]\nM2 b3 v2 : [D4 F4][B4 C5]\n"
+	rawB := "M1 b4 v2 : [C#4 E4][G4 A4]\nM2 b2 v2 : [D4 F4][B4]\n"
+	fA, err := svc.CreateFragment(p.ID, srcA.ID, "A", rawA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fB, err := svc.CreateFragment(p.ID, srcB.ID, "B", rawB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.ParseFragment(fA.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.ParseFragment(fB.ID); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := svc.AlignProject(p.ID); err != nil || n < 2 {
+		t.Fatalf("期望至少 2 个异文候选，实际 %d err=%v", n, err)
+	}
+	variants, err := svc.ListVariants(p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 只确认第一处异文，其余保留为未裁决候选。
+	confirmed := variants[0]
+	if _, err := svc.AdjudicateVariant(confirmed.ID, confirmed.DetectedKind, "仅裁决第一处", "tester"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AdjudicateVariant(confirmed.ID, model.VarConfirmed, "确认纳入校勘", "tester"); err != nil {
+		t.Fatal(err)
+	}
+	ed, err := svc.CreateEdition(p.ID, "校勘版")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.PublishEdition(ed.ID); err != nil {
+		t.Fatal(err)
+	}
+	links, err := svc.store.ListEditionVariants(ed.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(links) != 1 {
+		t.Fatalf("冻结快照应只含 1 个已确认异文，实际 %d", len(links))
+	}
+	if links[0].VariantID != confirmed.ID || !links[0].Included {
+		t.Fatalf("冻结快照收录项与已确认异文不符: %+v", links[0])
+	}
+	// 所有未裁决候选都不应出现在快照中。
+	for _, v := range variants[1:] {
+		for _, l := range links {
+			if l.VariantID == v.ID {
+				t.Fatalf("未裁决候选 %s 不应进入冻结快照", v.ID)
+			}
+		}
+	}
+}
+
