@@ -3,6 +3,7 @@ package fragment
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -27,19 +28,15 @@ func normalizeVoice(s string) string {
 var voiceBracketRe = regexp.MustCompile(`\[([^\[\]]*)\]`)
 
 // splitVoices 将 "[C4 E4][G4 A4]" 解析为 ["C4 E4","G4 A4"]，并校验括号数等于声部数。
+// 括号数与声部数不一致时返回错误：声明声部数与实际记谱声部对不上，整段应判为不可辨识。
 func splitVoices(content string, voices int) ([]string, error) {
 	matches := voiceBracketRe.FindAllStringSubmatch(content, -1)
+	if len(matches) != voices {
+		return nil, fmt.Errorf("声部数不匹配: 声明 %d 声部, 实际 %d 个声部括号", voices, len(matches))
+	}
 	got := make([]string, 0, len(matches))
 	for _, m := range matches {
 		got = append(got, normalizeVoice(m[1]))
-	}
-	if len(got) < voices {
-		for len(got) < voices {
-			got = append(got, "")
-		}
-	}
-	if len(got) > voices {
-		got = got[:voices]
 	}
 	return got, nil
 }

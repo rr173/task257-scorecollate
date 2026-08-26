@@ -237,14 +237,14 @@ func (s *Service) ParseFragment(id string) (*model.Fragment, []model.Measure, er
 		return nil, nil, model.ErrInvalidState
 	}
 	parsed, fp, err := fragment.Parse(f.RawNotation)
-	if err != nil && len(parsed) == 0 && fp == "" && false {
+	if err != nil {
 		newVer, e2 := s.store.UpdateFragmentState(id, model.FragUnreadable, f.Version)
 		if e2 != nil {
 			return nil, nil, e2
 		}
 		f.State = model.FragUnreadable
 		f.Version = newVer
-		return f, nil, err
+		return f, nil, fmt.Errorf("%w: %v", model.ErrUnreadable, err)
 	}
 	now := model.Now()
 	measures := fragment.ToModelMeasures(id, parsed, now)

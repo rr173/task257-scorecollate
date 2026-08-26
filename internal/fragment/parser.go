@@ -44,8 +44,7 @@ func Parse(raw string) ([]ParsedMeasure, string, error) {
 		voices := atoi(m[3])
 		voiceStrs, err := splitVoices(m[4], voices)
 		if err != nil {
-			voiceStrs = []string{m[4]}
-			_ = err
+			return nil, "", fmt.Errorf("行 %d: %w", i+1, err)
 		}
 		vj, err := json.Marshal(voiceStrs)
 		if err != nil {
