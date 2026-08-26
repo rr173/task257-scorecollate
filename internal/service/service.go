@@ -282,9 +282,11 @@ func (s *Service) AlignProject(projectID string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	// 仅已对齐的片段参与比对：被排除（excluded）或不可辨识（unreadable）的
+	// 片段即便仍残留已解析的小节，也不得再与祖本比对或为异文提供来源支持。
 	var aligned []*model.Fragment
 	for _, f := range fragments {
-		if f.State != model.FragPendingParse {
+		if f.State == model.FragAligned {
 			aligned = append(aligned, f)
 		}
 	}
@@ -320,12 +322,21 @@ func (s *Service) AlignProject(projectID string) (int, error) {
 	for _, src := range sources {
 		rootBySource[src.ID] = source.RootID(sources, src.ID)
 	}
+	// 仅参与比对的（已对齐）片段才进入支持度索引：已排除/不可辨识的片段
+	// 即便残留小节，也不得为异文提供来源支持。
+	alignedSet := make(map[string]bool, len(aligned))
+	for _, f := range aligned {
+		alignedSet[f.ID] = true
+	}
 	byFragment := map[string]map[int]model.Measure{}
-	rootByFragment := make(map[string]string, len(fragments))
-	for _, f := range fragments {
+	rootByFragment := make(map[string]string, len(aligned))
+	for _, f := range aligned {
 		rootByFragment[f.ID] = rootBySource[f.SourceID]
 	}
 	for _, m := range allMeasures {
+		if !alignedSet[m.FragmentID] {
+			continue
+		}
 		if byFragment[m.FragmentID] == nil {
 			byFragment[m.FragmentID] = map[int]model.Measure{}
 		}
