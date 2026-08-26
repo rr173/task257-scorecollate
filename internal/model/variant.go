@@ -14,7 +14,9 @@ const (
 )
 
 var variantTransitions = map[VariantState][]VariantState{
-	VarCandidate:    {VarError, VarValidVariant, VarInsufficient, VarConfirmed},
+	// 候选态必须先裁决为讹写/有效变体/证据不足之一，不得直接确认：
+	// 未判定类型的候选直接确认会让未裁决差异进入可发布集合。
+	VarCandidate:    {VarError, VarValidVariant, VarInsufficient},
 	VarError:        {VarConfirmed},
 	VarValidVariant: {VarConfirmed},
 	VarInsufficient: {VarConfirmed},
