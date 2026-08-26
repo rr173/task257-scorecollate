@@ -8,7 +8,8 @@ func BeatBreakInt(a, b int) bool {
 	return a != b
 }
 
-// WellFormed 判断声部内容是否为可接受记谱（非空且非占位）。
+// WellFormed 判断声部内容是否为可接受记谱（非空、非占位）。
+// 空串表示该声部/小节缺抄，不视为合法读法。
 func WellFormed(content string) bool {
-	return content != "-"
+	return content != "" && content != "-"
 }

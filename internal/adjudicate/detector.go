@@ -10,10 +10,9 @@ import (
 //   - 双方合法且存在独立来源支持 -> 有效变体(variant)
 //   - 双方合法但无独立支持 -> 证据不足(insufficient)
 func AssessKind(beatBreak bool, support int, wellFormed bool) model.VariantState {
-	if beatBreak {
+	if beatBreak || !wellFormed {
 		return model.VarError
 	}
-	_ = wellFormed
 	if support >= 1 {
 		return model.VarValidVariant
 	}
