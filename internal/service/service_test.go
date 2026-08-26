@@ -135,3 +135,37 @@ func TestSourceGenealogyRejectsCycle(t *testing.T) {
 		t.Fatalf("期望自环错误，实际 %v", err)
 	}
 }
+
+// TestSealedProjectBlocksNewSourcesAndFragments 封存后不得再增来源或片段，
+// 未封存项目仍可继续整理。
+func TestSealedProjectBlocksNewSourcesAndFragments(t *testing.T) {
+	svc := newTestService(t)
+	p, _ := svc.CreateProject("封存约束", "")
+	srcA, _ := svc.CreateSource(p.ID, "A", "祖本", "", "")
+
+	// 未封存时正常登记来源与片段
+	if _, err := svc.CreateSource(p.ID, "B", "传抄本", srcA.ID, ""); err != nil {
+		t.Fatalf("未封存项目应可新建来源，实际 %v", err)
+	}
+	if _, err := svc.CreateFragment(p.ID, srcA.ID, "A2", rawGood); err != nil {
+		t.Fatalf("未封存项目应可新建片段，实际 %v", err)
+	}
+
+	// 封存
+	if _, err := svc.TransitionProject(p.ID, model.ProjectSealed); err != nil {
+		t.Fatalf("封存迁移失败: %v", err)
+	}
+
+	// 封存后新增来源必须拒绝
+	if _, err := svc.CreateSource(p.ID, "C", "封存后来源", "", ""); !errors.Is(err, model.ErrSealed) {
+		t.Fatalf("封存后应拒绝新建来源，实际 %v", err)
+	}
+	// 封存后新增片段必须拒绝
+	if _, err := svc.CreateFragment(p.ID, srcA.ID, "A3", rawGood); !errors.Is(err, model.ErrSealed) {
+		t.Fatalf("封存后应拒绝新建片段，实际 %v", err)
+	}
+	// 调整已存在来源父本也必须拒绝
+	if _, err := svc.ReparentSource(srcA.ID, ""); !errors.Is(err, model.ErrSealed) {
+		t.Fatalf("封存后应拒绝调整来源谱系，实际 %v", err)
+	}
+}

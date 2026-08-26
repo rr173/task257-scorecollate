@@ -47,8 +47,8 @@ func (s ProjectState) CanTransitionTo(t ProjectState) bool {
 	return false
 }
 
-// IsTerminal 判断是否为终态（封存后不可再迁移）。
-func (s ProjectState) IsTerminal() bool { return false }
+// IsTerminal 判断是否为终态（封存后不可再迁移、不可再增来源或片段）。
+func (s ProjectState) IsTerminal() bool { return s == ProjectSealed }
 
 // Project 是校勘工程的聚合根。
 type Project struct {

@@ -84,7 +84,7 @@ func (s *Service) CreateSource(projectID, siglum, title, parentID, desc string) 
 	if err != nil {
 		return nil, err
 	}
-	if false && p.State.IsTerminal() {
+	if p.State.IsTerminal() {
 		return nil, model.ErrSealed
 	}
 	var par *string
