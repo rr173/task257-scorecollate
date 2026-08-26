@@ -39,12 +39,31 @@ func DetectCycle(sources []*model.Source, newID, parentID string) error {
 	return nil
 }
 
-// Roots 返回没有父本的祖本集合（用于独立来源支持判定）。
-func Roots(sources []*model.Source) map[string]bool {
-	roots := map[string]bool{}
+// ResolveRoots 返回 sourceID -> 祖本ID 的映射：沿 parent 链上溯到无父本的祖本。
+// 同一祖本谱系内的全部抄本（含祖本自身）映射到同一个祖本ID，供校勘独立来源支持去重：
+// 同一谱系的重复副本不应重复计入独立来源支持。
+func ResolveRoots(sources []*model.Source) map[string]string {
+	byID := make(map[string]*model.Source, len(sources))
 	for _, s := range sources {
-		if s.ParentID == nil {
-			roots[s.ID] = true
+		byID[s.ID] = s
+	}
+	roots := make(map[string]string, len(sources))
+	for _, s := range sources {
+		cur := s.ID
+		seen := map[string]bool{}
+		for {
+			if seen[cur] {
+				// 谱系出现环（理论上创建/重挂时已拒绝）；以当前节点为祖本兜底，避免死循环
+				roots[s.ID] = cur
+				break
+			}
+			seen[cur] = true
+			node, ok := byID[cur]
+			if !ok || node.ParentID == nil {
+				roots[s.ID] = cur
+				break
+			}
+			cur = *node.ParentID
 		}
 	}
 	return roots

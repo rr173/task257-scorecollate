@@ -52,7 +52,7 @@ type Variant struct {
 	ContentB      string
 	DetectedKind  VariantState // 自动识别的初判类型
 	State         VariantState
-	SupportCount  int // 独立来源支持数（除 A/B 外还有几份片段持相同读法）
+	SupportCount  int // 独立来源支持数：除 A/B 所在祖本谱系外，来自不同祖本谱系且持相同读法的来源数
 	Version       int64
 	CreatedAt     time.Time
 }

@@ -319,6 +319,17 @@ func (s *Service) AlignProject(projectID string) (int, error) {
 		}
 		byFragment[m.FragmentID][m.Number] = m
 	}
+	// 计算每份来源所属的祖本谱系：同祖本谱系内的传抄副本视为同源，
+	// 在独立来源支持度中只计一次，避免同源副本被重复计入独立支持。
+	sources, err := s.store.ListSources(projectID)
+	if err != nil {
+		return 0, err
+	}
+	sourceRoot := source.ResolveRoots(sources)
+	fragmentSource := make(map[string]string, len(fragments))
+	for _, f := range fragments {
+		fragmentSource[f.ID] = f.SourceID
+	}
 	if err := s.store.DeleteVariantsByProject(projectID); err != nil {
 		return 0, err
 	}
@@ -335,7 +346,7 @@ func (s *Service) AlignProject(projectID string) (int, error) {
 		for _, c := range cands {
 			beatBreak := align.BeatBreakInt(c.BeatsA, c.BeatsB)
 			wellFormed := align.WellFormed(c.ContentA) && align.WellFormed(c.ContentB)
-			support := adjudicate.SupportCount(byFragment, c.FragmentAID, c.FragmentBID, c.MeasureNumber, c.Voice, c.ContentA, c.ContentB)
+			support := adjudicate.SupportCount(byFragment, c.FragmentAID, c.FragmentBID, c.MeasureNumber, c.Voice, c.ContentA, c.ContentB, fragmentSource, sourceRoot)
 			kind := adjudicate.AssessKind(beatBreak, support, wellFormed)
 			v := &model.Variant{
 				ID: uuid.NewString(), ProjectID: projectID,
